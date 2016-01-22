@@ -1,0 +1,13 @@
+HTTP/1.x STATUSCODE
+Server: SwagServer
+Connection: close
+Date:Fri, 22 Jan 2016 09:18:29 GMT
+X-Powered-By: W3 Total Cache/0.8
+Pragma: public
+Content-Type: CONTENT_TYPE
+Expires: Sat, 28 Nov 2009 05:36:25 GMT
+Cache-Control: max-age=3600, public
+Last-Modified: Sat, 28 Nov 2014 03:50:37 GMT
+Cache-Control:max-age=1459576783
+Vary: Accept-Encoding, Cookie, User-Agent
+Access-Control-Allow-Origin:*
