@@ -1,2 +1,5 @@
-username:password
-admin:admin
+AuthUserFile .htpasswd
+AuthName "Dave's Login Area"
+AuthType Basic
+
+require user admin

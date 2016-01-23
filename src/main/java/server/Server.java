@@ -132,26 +132,49 @@ public class Server extends Thread{
         }
 
 
-        String dir = "root";
+
+
+
+
+        String dir = "root/";
         String file_name = "index.html";
+
         if(!path.equals("/")){
 
-            // concat slash
-            path = path.substring(1);
+            if(!path.endsWith("/")){
+                // concat slash
+                path = path.substring(1);
 
-            dir = path.substring(0, path.lastIndexOf("/"));
-            if(!dir.endsWith("/")) dir += "/";
+                if(!path.contains("/")){
+                    dir = "root/";
+                    file_name = path;
 
-            System.out.println("The directory requested : " + dir);
-            file_name = path.substring(path.lastIndexOf("/"));
+                }else{
+                    dir = path.substring(0, path.lastIndexOf("/"));
+                    file_name = path.substring(path.lastIndexOf("/"));
+                }
 
-            if(file_name.startsWith("/")) file_name = file_name.substring(1);
-            System.out.println("File name requested : " + file_name);
+                if(!dir.endsWith("/")) dir += "/";
+                if(file_name.startsWith("/")) file_name = file_name.substring(1);
+            }else{
+                // client requested a directory
+                // so dir is path and file name is index
+                dir = path.substring(1);
+            }
+
+
 
         }
 
+        System.out.println("THE DIR : " + dir + " FILE: " + file_name);
 
 
+        // extra check
+        // cant ask no file, or a directory from server
+        if(file_name.length() == 0 || path.length() == 0 || file_name.endsWith("/")){
+            writeHeader("400", "text/html", out);
+            return;
+        }
 
         boolean image = false;
 
@@ -163,14 +186,14 @@ public class Server extends Thread{
             image = true;
         }
 
-
-        Path dirPath = Paths.get(dir);
-
-        HashMap<String, String> htAccess = readAccess(dirPath);
+        HashMap<String, String> htAccess = readAccess(dir);
 
 
         // ok, this dir is secured
         if(htAccess != null){
+
+            System.out.println("VALID USERS: " + htAccess);
+
             // the client requested this file but didnt send his auth headers
             // return the 401 status code so the client knows he has to authenticate
             if(!authRequest){
@@ -197,7 +220,7 @@ public class Server extends Thread{
         }
 
 
-        Path p = Paths.get(path);
+        Path p = Paths.get(dir, file_name);
 
 
         if(!Files.exists(p)){
@@ -282,12 +305,112 @@ public class Server extends Thread{
      *
      * @return
      */
-    private static HashMap<String, String> readAccess(Path path){
+    private static HashMap<String, String> readAccess(final String dir){
+
+        try {
+            Path htAccessPath = Paths.get(dir, ".htaccess");
+
+            // no htacess file
+            if(!Files.exists(htAccessPath)){
+                return null;
+            }
+
+            List<String> htaccess_lines = Files.readAllLines(htAccessPath);
+
+
+            Optional<String> auth_type_line_opt = htaccess_lines.stream().filter(s -> s.contains("AuthType")).findFirst();
+            if(!auth_type_line_opt.isPresent()){
+                // no auth type defined
+                return null;
+            }
+            String auth_type_line = auth_type_line_opt.get();
+            // only support basic auth
+            if(!auth_type_line.contains("Basic")){
+                return null;
+            }
+
+
+            Optional<String> pass_file_line_opt = htaccess_lines.stream().filter(s -> s.contains("AuthUserFile")).findFirst();
+            if(!pass_file_line_opt.isPresent()){
+                // wants access but no file defined
+                return null;
+            }
+
+            if(pass_file_line_opt.get().trim().split(" ").length != 2){
+                // no file defined in file
+                return null;
+            }
+
+            // get the path
+            String pass_file_path = pass_file_line_opt.get().trim().split(" ")[1];
+
+
+            System.out.println("Htpwd file path " + pass_file_path);
+            // no htpasswd file
+            if(!Files.exists(Paths.get(dir , pass_file_path))){
+                return null;
+            }
+
+
+            List<String> required_users = new ArrayList<>();
+
+            // OK htacess and htpass present. get required users from htaccess
+            htaccess_lines.forEach(s -> {
+
+                final String req_user_key = "require user ";
+                if(s.startsWith(req_user_key)){
+                    if(s.length() > (req_user_key.length())){
+                        String username = s.substring(req_user_key.length());
+
+                        System.out.println("Found required username in htaccess file: " + username);
+                        required_users.add(username.trim().toLowerCase());
+                    }
+
+                }
+            });
+
+            if(required_users.size() == 0){
+                return null;
+            }
+
+
+
+            // htc passwd
+            Path ht_pwd_path = Paths.get(dir, ".htpasswd");
+
+            HashMap<String, String> u_pass_map = new HashMap<>();
+            List<String> htpwd_lines = Files.readAllLines(ht_pwd_path);
+
+            // get user credentials
+            for (String s : htpwd_lines){
+
+                String[] un_pass_split = s.trim().toLowerCase().split(":");
+                System.out.println(Arrays.toString(un_pass_split));
+                if(un_pass_split.length== 2){
+
+                    final String username = un_pass_split[0].trim();
+                    final String pass = un_pass_split[1].trim();
+
+                    System.out.println("Found user in htpasswd: " + username + " " + pass);
+
+                    if(required_users.contains(username)){
+                        u_pass_map.put(username, pass);
+                    }
+
+
+                }
+
+            }
+
+            return u_pass_map;
 
 
 
 
-        return null;
+        }catch (Exception e){
+            return null;
+        }
+
     }
 
 
