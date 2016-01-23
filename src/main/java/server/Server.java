@@ -1,21 +1,18 @@
 package server;
 
-import com.sun.imageio.plugins.jpeg.JPEGImageWriter;
-import com.sun.imageio.plugins.jpeg.JPEGImageWriterSpi;
-
 import javax.imageio.ImageIO;
-import javax.imageio.ImageWriter;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,6 +82,8 @@ public class Server extends Thread{
 
         System.out.println(lines);
         try{
+
+            // convert the request header to a usable format...
             String[] request_header = (lines.get(0).split(":"))[0].split(" ");
             String[] host_info = lines.stream().filter(s -> s.startsWith("Host")).map(s -> s.split(":")).findFirst().get();
 
@@ -188,10 +187,8 @@ public class Server extends Thread{
 
         HashMap<String, String> htAccess = readAccess(dir);
 
-
         // ok, this dir is secured
         if(htAccess != null){
-
             System.out.println("VALID USERS: " + htAccess);
 
             // the client requested this file but didnt send his auth headers
@@ -222,7 +219,6 @@ public class Server extends Thread{
 
         Path p = Paths.get(dir, file_name);
 
-
         if(!Files.exists(p)){
             writeHeader("404", content_type, out);
             return;
@@ -230,11 +226,6 @@ public class Server extends Thread{
 
         writeHeader("200", content_type, out);
         writeBody(p, image, out);
-
-
-
-
-
 
     }
 
@@ -259,11 +250,6 @@ public class Server extends Thread{
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
-
-
-
     }
 
     private static void writeBody(final Path path, boolean image, PrintStream out){
@@ -290,8 +276,6 @@ public class Server extends Thread{
         catch (IOException e1) {
             e1.printStackTrace();
         }
-
-
     }
 
 
@@ -401,11 +385,7 @@ public class Server extends Thread{
                 }
 
             }
-
             return u_pass_map;
-
-
-
 
         }catch (Exception e){
             return null;
